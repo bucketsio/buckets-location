@@ -1,24 +1,11 @@
-  <label>{{name}}</label>
+<label>{{name}}</label>
 
+<div class="form-group">
   <div class="map-container">
-    <div class="map"></div>
     <div class="mapInput">
-      {{input 'location' value.name placeholder="Address, Zip, City, or Region"}}
+      {{input 'location' value.name placeholder=settings.placeholder}}
     </div>
+    <div class="map"></div>
+    <a href="#getCurrent" class="btn btn-default btn-sm">Get current location…</a>
   </div>
-
-  <style>
-    .map-container {
-      position: relative;
-    }
-    .map {
-      height: 200px;
-      background-color: #e9e5dc;
-    }
-    .mapInput {
-      position: absolute;
-      top: 10px;
-      right: 8px;
-      left: 28px;
-    }
-  </style>
+</div>

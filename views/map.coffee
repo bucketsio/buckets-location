@@ -9,6 +9,7 @@ module.exports = class MapInputView extends Buckets.View
   defaultLocation:
     lat: 39.952335
     lng: -75.163789
+
   events:
     'change [name="location"]': 'updateLocationText'
     'keydown [name="location"]': 'keyDownLocation'
@@ -23,18 +24,21 @@ module.exports = class MapInputView extends Buckets.View
 
   initialize: ->
     super
-
     Modernizr.load
-      load: 'https://www.google.com/jsapi'
+      test: google?
+      nope: 'https://www.google.com/jsapi'
       complete: =>
         if google?
-          unless google.maps?
-            google.load "maps", "3",
+          unless Buckets.mediator.mapsLoaded?
+            Buckets.mediator.mapsLoaded = new $.Deferred
+
+            google.load 'maps', '3',
               other_params:'sensor=false'
-              callback: @mapsLoaded
-          else
-            _.defer @mapsLoaded
+              callback: => Buckets.mediator.mapsLoaded.resolve()
+          console.log Buckets.mediator.mapsLoaded
+          Buckets.mediator.mapsLoaded.done @mapsLoaded
         else
+          # Just in case they don’t have network access
           @render()
 
   render: ->
@@ -50,10 +54,12 @@ module.exports = class MapInputView extends Buckets.View
     @updatePosition location.lat, location.lng
 
     super
+
     @$map = @$('.map')
 
   mapsLoaded: =>
     @render()
+
     if @readonly
       @$map.append """
         <img src="//maps.googleapis.com/maps/api/staticmap?center=#{@lat},#{@lng}&zoom=14&size=230x140&markers=#{@lat},#{@lng}&sensor=false&scale=2">
@@ -66,8 +72,13 @@ module.exports = class MapInputView extends Buckets.View
         mapTypeId: google.maps.MapTypeId.ROADMAP
         disableDoubleClickZoom: true
         streetViewControl: false
-        scrollwheel: false # For now since we're in a scrolling modal
+        scrollwheel: false
         mapTypeControl: no
+        styles: [
+          featureType: 'poi'
+          elementType: 'labels',
+          stylers: [visibility: 'off']
+        ]
 
       @geocoder = new google.maps.Geocoder
 
@@ -83,15 +94,19 @@ module.exports = class MapInputView extends Buckets.View
 
     if @map
       if @marker
+        hadMarker = true
         @marker.setMap null
         delete @marker
+
+      @map.panTo new google.maps.LatLng lat, lng
 
       @marker = new google.maps.Marker
         position: new google.maps.LatLng lat, lng
         map: @map
-        animation: google.maps.Animation.DROP
+        animation: google.maps.Animation.DROP unless hadMarker
 
-      @map.setCenter new google.maps.LatLng lat, lng
+      console.log 'marker', @marker
+
 
   updateLocationText: (e) =>
     val = $(e.target).val()
@@ -100,11 +115,21 @@ module.exports = class MapInputView extends Buckets.View
       @geocoder.geocode
         address: $(e.target).val()
       , (results, status) =>
-        if results and status is 'OK'
+        if results?[0] and status is 'OK'
           loc = results[0].geometry.location
+
           @updatePosition loc.lat(), loc.lng()
+
           @model.set results
+
+          if @usingGeolocation is true
+            val = results[0].formatted_address
+            $(e.currentTarget).val val
+            @usingGeolocation = false
+
           @lastValue = val
+
+
 
   keyDownLocation: (e) ->
     if e.keyCode is 13 # (return key)
@@ -112,7 +137,6 @@ module.exports = class MapInputView extends Buckets.View
       @updateLocationText(e)
 
   getValue: ->
-    console.log 'GETVALUE', @model.toJSON()
     @updateSimpleLocation() unless google?.maps?
     if @isDefaultLocation()
       null
@@ -137,10 +161,17 @@ module.exports = class MapInputView extends Buckets.View
       $el.addClass('loadingPulse')
       $input.val 'Looking up location…'
 
-      navigator.geolocation?.getCurrentPosition (pos) ->
-        if (pos?.coords)
-          $input.val("#{pos?.coords.latitude}, #{pos?.coords.longitude}").trigger('change')
+      navigator.geolocation?.getCurrentPosition (pos) =>
+        console.log 'currentPosition', pos
+        if pos?.coords
+          @usingGeolocation = true
+
+          $input
+            .val pos.coords.latitude, pos.coords.longitude
+            .trigger 'change'
+
         enableInput()
+
       , ->
         $input.val fallbackCachedValue
         enableInput()
@@ -149,8 +180,13 @@ module.exports = class MapInputView extends Buckets.View
 
   dispose: ->
     if google?.maps? and not @disposed
+      if @marker?
+        @marker.setMap null
+
       google.maps.event.clearInstanceListeners window
       google.maps.event.clearInstanceListeners document
       google.maps.event.clearInstanceListeners @$map.get(0)
 
     super
+
+    console.log 'disposed', this
