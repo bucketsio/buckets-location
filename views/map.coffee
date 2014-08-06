@@ -24,20 +24,23 @@ module.exports = class MapInputView extends Buckets.View
 
   initialize: ->
     super
+
     Modernizr.load
-      test: google?
+      test: window.google?
       nope: 'https://www.google.com/jsapi'
-      complete: =>
-        if google?
+      complete: => _.defer =>
+        if window.google?
           unless Buckets.mediator.mapsLoaded?
             Buckets.mediator.mapsLoaded = new $.Deferred
 
             google.load 'maps', '3',
               other_params:'sensor=false'
               callback: => Buckets.mediator.mapsLoaded.resolve()
-          console.log Buckets.mediator.mapsLoaded
+
           Buckets.mediator.mapsLoaded.done @mapsLoaded
         else
+          console.warn 'Could not load Google API.', window.google
+
           # Just in case they don’t have network access
           @render()
 
@@ -105,9 +108,6 @@ module.exports = class MapInputView extends Buckets.View
         map: @map
         animation: google.maps.Animation.DROP unless hadMarker
 
-      console.log 'marker', @marker
-
-
   updateLocationText: (e) =>
     val = $(e.target).val()
 
@@ -128,8 +128,6 @@ module.exports = class MapInputView extends Buckets.View
             @usingGeolocation = false
 
           @lastValue = val
-
-
 
   keyDownLocation: (e) ->
     if e.keyCode is 13 # (return key)
@@ -162,12 +160,11 @@ module.exports = class MapInputView extends Buckets.View
       $input.val 'Looking up location…'
 
       navigator.geolocation?.getCurrentPosition (pos) =>
-        console.log 'currentPosition', pos
         if pos?.coords
           @usingGeolocation = true
 
           $input
-            .val pos.coords.latitude, pos.coords.longitude
+            .val "#{pos.coords.latitude}, #{pos.coords.longitude}"
             .trigger 'change'
 
         enableInput()
@@ -179,7 +176,7 @@ module.exports = class MapInputView extends Buckets.View
   isDefaultLocation: -> @lat is @defaultLocation.lat and @lng is @defaultLocation.lng
 
   dispose: ->
-    if google?.maps? and not @disposed
+    if google?.maps?.event? and not @disposed
       if @marker?
         @marker.setMap null
 
@@ -188,5 +185,3 @@ module.exports = class MapInputView extends Buckets.View
       google.maps.event.clearInstanceListeners @$map.get(0)
 
     super
-
-    console.log 'disposed', this
