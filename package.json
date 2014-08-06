@@ -1,7 +1,7 @@
 {
   "name": "buckets-location",
-  "version": "0.0.2",
-  "description": "",
+  "version": "0.0.3",
+  "description": "Location FieldType for Buckets CMS",
   "main": "index.js",
   "scripts": {},
   "author": "David Kaneda",
