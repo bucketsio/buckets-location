@@ -1,9 +1,13 @@
 {
   "name": "buckets-location",
-  "version": "0.0.4",
-  "description": "Location FieldType for Buckets CMS",
+  "version": "0.0.5",
+  "description": "Location FieldType for Buckets CMS.",
   "main": "index.js",
   "scripts": {},
   "author": "David Kaneda",
-  "license": ""
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bucketsio/buckets-location.git"
+  }
 }
